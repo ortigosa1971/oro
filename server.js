@@ -53,20 +53,65 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'inicio.html'));
 });
 
+// --- Utilidades para detectar tabla/columna de usuarios ---
+function resolveUserLookup(db) {
+  // Tablas existentes
+  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(r => r.name);
+
+  // Candidatos de tablas y columnas
+  const tableCandidates = ["users", "usuarios"];
+  const columnCandidates = ["username", "usuario", "nombre"];
+
+  for (const t of tableCandidates) {
+    if (!tables.includes(t)) continue;
+    const cols = db.prepare(`PRAGMA table_info(${t})`).all().map(c => c.name);
+    const hit = columnCandidates.find(c => cols.includes(c));
+    if (hit) return { table: t, column: hit };
+  }
+  return null;
+}
+
+// Resolver al arrancar (y cachear)
+let USER_LOOKUP = null;
+try {
+  USER_LOOKUP = resolveUserLookup(db);
+  if (!USER_LOOKUP) {
+    console.error("❌ No se encontró tabla/columna de usuarios válida. Revisa tu BD.");
+  } else {
+    console.log(`✅ Login usando tabla '${USER_LOOKUP.table}', columna '${USER_LOOKUP.column}'`);
+  }
+} catch (e) {
+  console.error("❌ Error resolviendo esquema de usuarios:", e);
+}
+
+// --- LOGIN con autodetección ---
 app.post('/login', (req, res) => {
-  let { usuario } = req.body;
-  usuario = (usuario || '').trim();
-  if (!usuario) return res.redirect('/login.html?error=campos');
   try {
-    const row = db.prepare('SELECT username FROM users WHERE username = ? LIMIT 1').get(usuario);
+    let { usuario } = req.body;
+    usuario = (usuario || '').trim();
+    if (!usuario) return res.redirect('/login.html?error=campos');
+
+    if (!USER_LOOKUP) {
+      USER_LOOKUP = resolveUserLookup(db);
+      if (!USER_LOOKUP) {
+        console.error("❌ Esquema no válido: no hay tabla/columna de usuarios.");
+        return res.redirect('/login.html?error=server');
+      }
+    }
+
+    const { table, column } = USER_LOOKUP;
+    const stmt = db.prepare(`SELECT ${column} AS username FROM ${table} WHERE ${column} = ? LIMIT 1`);
+    const row = stmt.get(usuario);
+
     if (!row) return res.redirect('/login.html?error=credenciales');
     req.session.usuario = row.username;
     return res.redirect('/');
   } catch (e) {
-    console.error('Error DB /login:', e);
+    console.error("❌ Error DB /login:", e);
     return res.redirect('/login.html?error=server');
   }
 });
+
 
 app.get('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/login.html'));
