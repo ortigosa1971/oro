@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Inicio</title>
+</head>
+<body>
+  <h1>Inicio</h1>
+  <a href="/logout">Logout</a>
+  <script>
+    async function check() {
+      const r = await fetch('/verificar-sesion');
+      const j = await r.json();
+      if (!j.activo) {
+        alert('Tu sesión fue cerrada o reemplazada.');
+        location.href = '/login.html';
+      }
+    }
+    setInterval(check, 5000);
+  </script>
+</body>
+</html>

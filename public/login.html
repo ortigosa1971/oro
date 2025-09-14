@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login</title>
+</head>
+<body>
+  <h1>Login</h1>
+  <form method="POST" action="/login">
+    <input name="usuario" placeholder="Usuario" required />
+    <button type="submit">Entrar</button>
+  </form>
+  <p id="msg"></p>
+  <script>
+    const p = new URLSearchParams(location.search);
+    const e = p.get('error');
+    if (e === 'sesion') document.getElementById('msg').textContent = 'Ya hay una sesión activa con este usuario.';
+    if (e === 'datos') document.getElementById('msg').textContent = 'Faltan datos.';
+    if (e === 'usuario') document.getElementById('msg').textContent = 'Usuario no existe.';
+  </script>
+</body>
+</html>
